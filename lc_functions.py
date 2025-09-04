@@ -110,8 +110,7 @@ def stats_lightcurves_paralalel(folder, filter='J', batch_size=1000, **columns):
                     for prop in props:
                         file_data[prop] = getattr(lc, prop, np.nan)
                     file_data['error'] = None  #.no error occurred
-                    file_data['RA'] = np.nanmean(data_filtered['RA'])
-                    file_data['DEC'] = np.nanmean(data_filtered['DEC'])                    
+                    
                 else:
                     #.If no data is available for specified filter
                     file_data.update({prop: np.nan for prop in [
@@ -121,15 +120,13 @@ def stats_lightcurves_paralalel(folder, filter='J', batch_size=1000, **columns):
                     ]})
                     file_data['N'] = 0  #.set count to zero
                     file_data['error'] = 'No data for filter'
-                    file_data['RA'] = np.nan
-                    file_data['DEC'] = np.nan
                     
             except Exception as e:
                 #.If error, fill with NaN
                 file_data.update({prop: np.nan for prop in [
                     'N', 'SNR', 'max', 'mean', 'mean_err', 'median', 'min',
                     'ptp', 'range', 'std', 'time_max', 'time_min',
-                    'time_span', 'weighted_average', 'RA', 'DEC'
+                    'time_span', 'weighted_average'
                 ]})
                 file_data['error'] = str(e)  #.storing error message
                 print(f"✗ Error in {file}: {e}")
@@ -194,9 +191,7 @@ def stats_lightcurves(folder, filter='J', **columns):
     - time_span: Total time span of observations
     - weighted_average: Weighted average magnitude
     - error: Error message if processing failed, None otherwise
-    - RA: Average Right Ascension
-    - DEC: Average Declination
-
+    
     Example:
     --------
     stats_lightcurves(
@@ -223,7 +218,7 @@ def stats_lightcurves(folder, filter='J', **columns):
     results = []  #.To store all processing results
     
     #.Processing all files at once (no batches)
-    for file in tqdm(all_files, desc="Processing files", miniters=5000):
+    for file in tqdm(all_files, desc="Processing files", miniters=1000):
         # Extracting numeric identifier from filename
         file_number = int(re.search(r'UKIRT2007_lc_(\d+)\.csv', file).group(1))
         file_data = {'file': file, 'file_number': file_number, 'filter': filter}
@@ -250,10 +245,7 @@ def stats_lightcurves(folder, filter='J', **columns):
                 for prop in props:
                     file_data[prop] = getattr(lc, prop, np.nan)
                 file_data['error'] = None  # no error occurred
-                # add average coordinate
-                file_data['RA'] = np.nanmean(data_filtered['RA'])
-                file_data['DEC'] = np.nanmean(data_filtered['DEC'])
-
+                
             else:
                 #.If no data is available for specified filter
                 file_data.update({prop: np.nan for prop in [
@@ -263,14 +255,13 @@ def stats_lightcurves(folder, filter='J', **columns):
                 ]})
                 file_data['N'] = 0  #.set count to zero
                 file_data['error'] = 'No data for filter'
-                file_data['RA'] = np.nan
-                file_data['DEC'] = np.nan
+                
         except Exception as e:
             #.If error, fill with NaN
             file_data.update({prop: np.nan for prop in [
                 'N', 'SNR', 'max', 'mean', 'mean_err', 'median', 'min',
                 'ptp', 'range', 'std', 'time_max', 'time_min',
-                'time_span', 'weighted_average', 'RA', 'DEC'
+                'time_span', 'weighted_average'
             ]})
             file_data['error'] = str(e)  #.storing error message
             print(f"✗ Error in {file}: {e}")
