@@ -21,6 +21,8 @@ def stats_lightcurves_paralalel(folder, filter='J', batch_size=1000, **columns):
         Number of files to process in each batch for memory management
     **columns : dict
         Column mapping dictionary with keys:
+        - 'ra': column name for RA values
+        - 'dec': column name for DEC values
         - 'time': column name for time values
         - 'mag': column name for magnitude values  
         - 'err': column name for error values
@@ -51,6 +53,8 @@ def stats_lightcurves_paralalel(folder, filter='J', batch_size=1000, **columns):
     - time_min: Time of minimum magnitude
     - time_span: Total time span of observations
     - weighted_average: Weighted average magnitude
+    - ra_mean: Mean RA value
+    - dec_mean: Mean DEC value
     - error: Error message if processing failed, None otherwise
     
     Example:
@@ -65,7 +69,7 @@ def stats_lightcurves_paralalel(folder, filter='J', batch_size=1000, **columns):
     ... )
     """
     #.Extract column names from parameters
-    time_col, mag_col, err_col = columns['time'], columns['mag'], columns['err']
+    ra_col, dec_col, time_col, mag_col, err_col = columns['ra'], columns['dec'], columns['time'], columns['mag'], columns['err']
     parent_folder = os.path.dirname(folder)
     
     #.List and sort files numerically by embedded number in filename
@@ -89,9 +93,9 @@ def stats_lightcurves_paralalel(folder, filter='J', batch_size=1000, **columns):
             file_data = {'file': file, 'file_number': file_number, 'filter': filter}
             
             try:
-                #.Loading columns used
+                #.Loading columns used (including RA and DEC)
                 data = pd.read_csv(os.path.join(folder, file), 
-                                  usecols=['Filter', time_col, mag_col, err_col])
+                                  usecols=['Filter', ra_col, dec_col, time_col, mag_col, err_col])
                 #.Filter data for specified filter band
                 data_filtered = data[data['Filter'] == filter]
                 
@@ -109,6 +113,10 @@ def stats_lightcurves_paralalel(folder, filter='J', batch_size=1000, **columns):
                     #.Extract each property (returns NaN if missing)
                     for prop in props:
                         file_data[prop] = getattr(lc, prop, np.nan)
+                    
+                    #.Calculate mean RA and DEC
+                    file_data['ra_mean'] = data_filtered[ra_col].mean()
+                    file_data['dec_mean'] = data_filtered[dec_col].mean()
                     file_data['error'] = None  #.no error occurred
                     
                 else:
@@ -116,7 +124,7 @@ def stats_lightcurves_paralalel(folder, filter='J', batch_size=1000, **columns):
                     file_data.update({prop: np.nan for prop in [
                         'N', 'SNR', 'max', 'mean', 'mean_err', 'median', 'min',
                         'ptp', 'range', 'std', 'time_max', 'time_min',
-                        'time_span', 'weighted_average'
+                        'time_span', 'weighted_average', 'ra_mean', 'dec_mean'
                     ]})
                     file_data['N'] = 0  #.set count to zero
                     file_data['error'] = 'No data for filter'
@@ -126,7 +134,7 @@ def stats_lightcurves_paralalel(folder, filter='J', batch_size=1000, **columns):
                 file_data.update({prop: np.nan for prop in [
                     'N', 'SNR', 'max', 'mean', 'mean_err', 'median', 'min',
                     'ptp', 'range', 'std', 'time_max', 'time_min',
-                    'time_span', 'weighted_average'
+                    'time_span', 'weighted_average', 'ra_mean', 'dec_mean'
                 ]})
                 file_data['error'] = str(e)  #.storing error message
                 print(f"✗ Error in {file}: {e}")
@@ -161,6 +169,8 @@ def stats_lightcurves(folder, filter='J', **columns):
         Filter to process (e.g., 'J', 'H', 'K'). Files are filtered by this value
     **columns : dict
         Column mapping dictionary with keys:
+        - 'ra': column name for RA values
+        - 'dec': column name for DEC values
         - 'time': column name for time values
         - 'mag': column name for magnitude values  
         - 'err': column name for error values
@@ -190,6 +200,8 @@ def stats_lightcurves(folder, filter='J', **columns):
     - time_min: Time of minimum magnitude
     - time_span: Total time span of observations
     - weighted_average: Weighted average magnitude
+    - ra_mean: Mean RA value
+    - dec_mean: Mean DEC value
     - error: Error message if processing failed, None otherwise
     
     Example:
@@ -204,7 +216,7 @@ def stats_lightcurves(folder, filter='J', **columns):
     
     """
     #.Extract column names from parameters
-    time_col, mag_col, err_col = columns['time'], columns['mag'], columns['err']
+    ra_col, dec_col, time_col, mag_col, err_col = columns['ra'], columns['dec'], columns['time'], columns['mag'], columns['err']
     parent_folder = os.path.dirname(folder)
     
     #.List and sort files numerically by embedded number in filename
@@ -218,15 +230,15 @@ def stats_lightcurves(folder, filter='J', **columns):
     results = []  #.To store all processing results
     
     #.Processing all files at once (no batches)
-    for file in tqdm(all_files, desc="Processing files", miniters=1000):
+    for file in tqdm(all_files, desc="Processing files"):
         # Extracting numeric identifier from filename
         file_number = int(re.search(r'UKIRT2007_lc_(\d+)\.csv', file).group(1))
         file_data = {'file': file, 'file_number': file_number, 'filter': filter}
         
         try:
-            #.Loading columns used
+            #.Loading columns used (including RA and DEC)
             data = pd.read_csv(os.path.join(folder, file), 
-                              usecols=['Filter', time_col, mag_col, err_col])
+                              usecols=['Filter', ra_col, dec_col, time_col, mag_col, err_col])
             #.Filter data for specified filter band
             data_filtered = data[data['Filter'] == filter]
             
@@ -244,14 +256,18 @@ def stats_lightcurves(folder, filter='J', **columns):
                 #.Extract each property (returns NaN if missing)
                 for prop in props:
                     file_data[prop] = getattr(lc, prop, np.nan)
-                file_data['error'] = None  # no error occurred
+                
+                #.Calculate mean RA and DEC
+                file_data['ra_mean'] = data_filtered[ra_col].mean()
+                file_data['dec_mean'] = data_filtered[dec_col].mean()
+                file_data['error'] = None  #.no error occurred
                 
             else:
                 #.If no data is available for specified filter
                 file_data.update({prop: np.nan for prop in [
                     'N', 'SNR', 'max', 'mean', 'mean_err', 'median', 'min',
                     'ptp', 'range', 'std', 'time_max', 'time_min',
-                    'time_span', 'weighted_average'
+                    'time_span', 'weighted_average', 'ra_mean', 'dec_mean'
                 ]})
                 file_data['N'] = 0  #.set count to zero
                 file_data['error'] = 'No data for filter'
@@ -261,7 +277,7 @@ def stats_lightcurves(folder, filter='J', **columns):
             file_data.update({prop: np.nan for prop in [
                 'N', 'SNR', 'max', 'mean', 'mean_err', 'median', 'min',
                 'ptp', 'range', 'std', 'time_max', 'time_min',
-                'time_span', 'weighted_average'
+                'time_span', 'weighted_average', 'ra_mean', 'dec_mean'
             ]})
             file_data['error'] = str(e)  #.storing error message
             print(f"✗ Error in {file}: {e}")
