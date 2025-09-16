@@ -5,6 +5,7 @@ from tqdm import tqdm
 import pandas as pd
 import os
 import re
+import glob
 import numpy as np
 
 def stats_lightcurves_paralalel(folder, filter='J', batch_size=1000, **columns):
@@ -291,3 +292,177 @@ def stats_lightcurves(folder, filter='J', **columns):
     
     print(f" {filter}: {len(results)} files processed successfully")
     print(f" Output saved to: {output_path}")
+    
+    
+
+
+def clean_light_curves(input_folder, output_folder, bad_hjds):
+    """
+    Removes specifics HJD from lightcurves.
+    
+    Parameters:
+    input_folder: folder with lcs
+    output_folder: folder to save clean lcs
+    bad_hjds: HJDs list to be removed
+    """
+    
+    os.makedirs(output_folder, exist_ok=True)
+    
+    stats = {
+        'processed': 0,
+        'cleaned': 0,
+        'rows_removed': 0
+    }
+    
+    files = glob.glob(os.path.join(input_folder, '*.csv'))
+    
+    for file_path in tqdm(files, desc="Processando arquivos"):
+        try:
+            df = pd.read_csv(file_path)
+            
+            if 'HJD' not in df.columns:
+                continue
+            
+            original_len = len(df)
+            df_clean = df[~df['HJD'].isin(bad_hjds)]
+            removed = original_len - len(df_clean)
+            
+            if removed > 0:
+                stats['cleaned'] += 1
+                stats['rows_removed'] += removed
+            
+            output_path = os.path.join(output_folder, os.path.basename(file_path))
+            df_clean.to_csv(output_path, index=False)
+            stats['processed'] += 1
+            
+        except Exception as e:
+            print(f"Error: {os.path.basename(file_path)}: {e}")
+    
+    return stats
+
+
+def quantiles_comp(df, coluna_x, coluna_y, q=0.01, min_points=200, bins=None, max_bin_value=20.1):
+    """
+    Calculates the percentile of column_y as a function of coluna_x using adaptive or user-defined bins.
+    All values above max_bin_value are grouped into a single bin.
+    
+    Parameters:
+        df: DataFrame
+        coluna_x: str - reference column (e.g., 'mean')
+        coluna_y: str - column to calculate percentile (e.g., 'mean_err')
+        q: float - desired quantile
+        min_points: int - used only if bins is None
+        bins: int or array-like, optional - number of bins or array of bin edges
+        max_bin_value: float - all values above this go into a single bin
+    
+    Returns:
+        DataFrame with columns:
+            coluna_x: bin center
+            coluna_y: percentile value
+    """
+    df = df.copy()
+
+    #.bins
+    if bins is None:
+        N = len(df[df[coluna_x] <= max_bin_value])
+        n_bins = max(10, N // min_points)
+        bins = np.linspace(df[coluna_x].min(), max_bin_value, n_bins)
+    elif isinstance(bins, int):
+        bins = np.linspace(df[coluna_x].min(), max_bin_value, bins)
+    else:
+        bins = np.array(bins)
+        bins = bins[bins <= max_bin_value]
+
+    #.last bin added with all values above max_bin_value
+    bins = np.append(bins, np.inf)
+
+    #.bin the data
+    df['bin'] = pd.cut(df[coluna_x], bins, include_lowest=True, right=True)
+
+    #.quantile per bin
+    result = df.groupby('bin')[coluna_y].quantile(q).reset_index()
+
+    #.center of the bin
+    def bin_center(x):
+        if isinstance(x, pd.Interval):
+            if np.isfinite(x.right):
+                return x.mid
+            else:
+                return max_bin_value + 0.5  #.last bin representative value
+        else:
+            return x
+
+    result[coluna_x] = result['bin'].apply(bin_center)
+    return result[[coluna_x, coluna_y]]
+
+
+def iqr_comp(df, coluna_x, coluna_y, min_points=200, bins=None, max_bin_value=20.1):
+    """
+    Calculates the IQR (Q3 - Q1) of column_y as a function of coluna_x using adaptive or user-defined bins.
+    All values above max_bin_value are grouped into a single bin.
+    """
+    df = df.copy()
+
+    #.bins
+    if bins is None:
+        N = len(df[df[coluna_x] <= max_bin_value])
+        n_bins = max(10, N // min_points)
+        bins = np.linspace(df[coluna_x].min(), max_bin_value, n_bins)
+    elif isinstance(bins, int):
+        bins = np.linspace(df[coluna_x].min(), max_bin_value, bins)
+    else:
+        bins = np.array(bins)
+        bins = bins[bins <= max_bin_value]
+
+    bins = np.append(bins, np.inf)
+
+    #bin the data
+    df['bin'] = pd.cut(df[coluna_x], bins, include_lowest=True, right=True)
+
+    #.q1 and q3
+    grouped = df.groupby('bin')[coluna_y]
+    Q1 = grouped.quantile(0.25)
+    Q3 = grouped.quantile(0.75)
+
+    result = pd.DataFrame({
+        'bin': Q1.index,
+        'IQR': Q3.values - Q1.values
+    })
+
+    #.bin center
+    def bin_center(x):
+        if isinstance(x, pd.Interval):
+            if np.isfinite(x.right):
+                return x.mid
+            else:
+                return max_bin_value + 0.1
+        else:
+            return x
+
+    result[coluna_x] = result['bin'].apply(bin_center)
+    return result[[coluna_x, 'IQR']]
+
+#computing peak-to-epake using the median of the top and bottom percentage of points
+def comp_ptp(data, magnitudes, percentage):
+    
+    mag = data[magnitudes]
+    
+    #.numerical order
+    mag_s = np.sort(mag)
+    #.number of points in 5%
+    n = len(mag_s)
+    k = max(1, int(np.ceil(percentage * n)))
+    
+    val_inf = mag_s[:k]     
+    val_sup = mag_s[-k:]    
+    
+    median_inf = np.median(val_inf)
+    median_sup = np.median(val_sup)
+    
+    amp = median_sup - median_inf
+    
+    return 
+
+
+
+
