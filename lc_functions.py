@@ -1,6 +1,7 @@
 import sys
 sys.path.append('/Users/marie/Documents/Research/sge/Julia/VariabilityIndexes')
 from variability.lightcurve import LightCurve
+from variability.indexes import VariabilityIndex
 from tqdm import tqdm
 import pandas as pd
 import os
@@ -156,7 +157,177 @@ def stats_lightcurves_paralalel(folder, filter='J', batch_size=1000, **columns):
     
     print(f" {filter}: {len(results)} files processed successfully")
     print(f" Output saved to: {output_path}")
+
+def get_varindexes(folder, filter='J', **columns):
+    """
+    Process light curves files, extracting statistical properties and variability indexes.
     
+    Parameters:
+    -----------
+    folder : str
+        Path to the directory containing light curve CSV files
+    filter : str, optional (default='J')
+        Filter to process (e.g., 'J', 'H', 'K'). Files are filtered by this value
+    **columns : dict
+        Column mapping dictionary with keys:
+        - 'ra': column name for RA values
+        - 'dec': column name for DEC values
+        - 'time': column name for time values
+        - 'mag': column name for magnitude values  
+        - 'err': column name for error values
+    
+    Returns:
+    --------
+    None
+        Saves results to CSV files in the parent directory:
+        - props_{filter}_final.csv: Final complete results
+    
+    Output Columns:
+    ---------------
+    - file: Original filename
+    - file_number: Numeric identifier extracted from filename
+    - filter: Filter used for processing
+    - N: Number of data points
+    - SNR: Signal-to-noise ratio
+    - max: Maximum magnitude value
+    - mean: Mean magnitude value
+    - mean_err: Mean error value
+    - median: Median magnitude value
+    - min: Minimum magnitude value
+    - ptp: Peak-to-peak magnitude variation
+    - range: Magnitude range
+    - std: Standard deviation of magnitudes
+    - time_max: Time of maximum magnitude
+    - time_min: Time of minimum magnitude
+    - time_span: Total time span of observations
+    - weighted_average: Weighted average magnitude
+    - ra_mean: Mean RA value
+    - dec_mean: Mean DEC value
+    - error: Error message if processing failed, None otherwise
+    - Abbe: Abbe Index
+    - IQR: Interquantile Range
+    - Lag1AutoCorr: Autocorrelation lag-1
+    - RoMS: Robust median statistic
+    - ShapiroWilk: Shapiro-Wilk statistic
+    - andersonDarling: Anderson-Darling statistics
+    - chisquare: Chi-square
+    - kurtosis: Kurtosis
+    - mad: median absolute deviation 
+    - norm_ptp: Normalized peak-to-peak variability
+    - normalisedExcessVariance: Normalized excessive variance
+    - reducedChiSquare: reduced Chi Square
+    - skewness: Skewness
+    - Q_index: Q index
+    
+    Example:
+    --------
+    stats_lightcurves(
+    ...     folder='/data/light_curves',
+    ...     filter='H',
+    ...     time='mjd',
+    ...     mag='mag',
+    ...     err='err'
+    ... )
+    
+    """
+    #.Validação das colunas obrigatórias
+    required_columns = ['ra', 'dec', 'time', 'mag', 'err']
+    for col in required_columns:
+        if col not in columns:
+            raise ValueError(f"Coluna obrigatória '{col}' não fornecida")
+    
+    #.Extract column names from parameters
+    ra_col, dec_col, time_col, mag_col, err_col = columns['ra'], columns['dec'], columns['time'], columns['mag'], columns['err']
+    parent_folder = os.path.dirname(folder)
+    
+    #.List and sort files numerically by embedded number in filename
+    #.Melhoria no filtro de arquivos - abordagem mais robusta
+    all_files = []
+    for f in os.listdir(folder):
+        if f.startswith('UKIRT2007_lc_') and f.endswith('.csv'):
+            match = re.search(r'(\d+)', f)
+            if match:  #.Só incluir se tiver número
+                all_files.append(f)
+    
+    #.Ordenar arquivos numericamente
+    all_files = sorted(
+        all_files,
+        key=lambda x: int(re.search(r'UKIRT2007_lc_(\d+)\.csv', x).group(1)) if re.search(r'UKIRT2007_lc_(\d+)\.csv', x) else 0
+    )
+    
+    print(f"Processing {len(all_files)} files...")
+    
+    results = []  #.To store all processing results
+    
+    #.Processing all files at once (no batches)
+    for file in tqdm(all_files, desc="Processing files"):
+        # Extracting numeric identifier from filename
+        file_number = int(re.search(r'UKIRT2007_lc_(\d+)\.csv', file).group(1))
+        file_data = {'file': file, 'file_number': file_number, 'filter': filter}
+        
+        try:
+            #.Loading columns used (including RA and DEC)
+            data = pd.read_csv(os.path.join(folder, file), 
+                              usecols=['Filter', ra_col, dec_col, time_col, mag_col, err_col])
+            #.Filter data for specified filter band
+            data_filtered = data[data['Filter'] == filter]
+            
+            if not data_filtered.empty:
+                #.Create LightCurve and Variability indexes objects and extract properties
+                lc = LightCurve(data_filtered[time_col], 
+                               data_filtered[mag_col], 
+                               data_filtered[err_col])
+                var = VariabilityIndex(lc)
+                
+                #.LightCurve properties to extract
+                props_lc = ['N', 'SNR', 'max', 'mean', 'mean_err', 'median', 'min', 
+                        'ptp', 'range', 'std', 'time_max', 'time_min', 
+                        'time_span', 'weighted_average']
+                props_var = ['Abbe', 'IQR', 'Lag1AutoCorr', 'RoMS', 'ShapiroWilk',
+                        'andersonDarling', 'chisquare', 'kurtosis', 'mad',
+                        'norm_ptp', 'normalisedExcessVariance', 'reducedChiSquare',
+                        'skewness', 'Q_index']
+                
+                #.Extract each property (returns NaN if missing)
+                for prop in props_lc:
+                    file_data[prop] = getattr(lc, prop, np.nan)
+                for prop in props_var:
+                    file_data[prop] = getattr(var, prop, np.nan)
+                
+                #.Calculate mean RA and DEC
+                file_data['ra_mean'] = data_filtered[ra_col].mean()
+                file_data['dec_mean'] = data_filtered[dec_col].mean()
+                file_data['error'] = None  #.no error occurred
+                
+            else:
+                #.If no data is available for specified filter
+                file_data.update({prop: np.nan for prop in [
+                    'N', 'SNR', 'max', 'mean', 'mean_err', 'median', 'min',
+                    'ptp', 'range', 'std', 'time_max', 'time_min',
+                    'time_span', 'weighted_average', 'ra_mean', 'dec_mean'
+                ]})
+                file_data['N'] = 0  #.set count to zero
+                file_data['error'] = 'No data for filter'
+                
+        except Exception as e:
+            #.If error, fill with NaN
+            file_data.update({prop: np.nan for prop in [
+                'N', 'SNR', 'max', 'mean', 'mean_err', 'median', 'min',
+                'ptp', 'range', 'std', 'time_max', 'time_min',
+                'time_span', 'weighted_average', 'ra_mean', 'dec_mean'
+            ]})
+            file_data['error'] = str(e)  #.storing error message
+            print(f"✗ Error in {file}: {e}")
+        
+        results.append(file_data)
+    
+    #.Save final results sorted by file number
+    final_df = pd.DataFrame(results).sort_values('file_number')
+    output_path = os.path.join(parent_folder, f'variability_{filter}_final.csv')
+    final_df.to_csv(output_path, index=False)
+    
+    print(f" {filter}: {len(results)} files processed successfully")
+    print(f" Output saved to: {output_path}")
 
 def stats_lightcurves(folder, filter='J', **columns):
     """
@@ -292,9 +463,6 @@ def stats_lightcurves(folder, filter='J', **columns):
     
     print(f" {filter}: {len(results)} files processed successfully")
     print(f" Output saved to: {output_path}")
-    
-    
-
 
 def clean_light_curves(input_folder, output_folder, bad_hjds):
     """
@@ -395,7 +563,6 @@ def quantiles_comp(df, coluna_x, coluna_y, q=0.01, min_points=200, bins=None, ma
     result[coluna_x] = result['bin'].apply(bin_center)
     return result[[coluna_x, coluna_y]]
 
-
 def iqr_comp(df, coluna_x, coluna_y, min_points=200, bins=None, max_bin_value=20.1):
     """
     Calculates the IQR (Q3 - Q1) of column_y as a function of coluna_x using adaptive or user-defined bins.
@@ -442,7 +609,7 @@ def iqr_comp(df, coluna_x, coluna_y, min_points=200, bins=None, max_bin_value=20
     result[coluna_x] = result['bin'].apply(bin_center)
     return result[[coluna_x, 'IQR']]
 
-#computing peak-to-epake using the median of the top and bottom percentage of points
+#computing peak-to-peake using the median of the top and bottom percentage of points
 def comp_ptp(data, magnitudes, percentage):
     
     mag = data[magnitudes]
