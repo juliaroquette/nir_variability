@@ -8,6 +8,8 @@ import os
 import re
 import glob
 import numpy as np
+# to prevent it from printing the Q-index warning
+VariabilityIndex.suppress_warnings_globally()
 
 def stats_lightcurves_paralalel(folder, filter='J', batch_size=1000, **columns):
     """
@@ -278,7 +280,7 @@ def get_varindexes(folder, filter='J', **columns):
                                data_filtered[mag_col], 
                                data_filtered[err_col])
                 var = VariabilityIndex(lc)
-                
+                var.suppress_warnings_globally(cls)
                 #.LightCurve properties to extract
                 props_lc = ['N', 'SNR', 'max', 'mean', 'mean_err', 'median', 'min', 
                         'ptp', 'range', 'std', 'time_max', 'time_min', 
