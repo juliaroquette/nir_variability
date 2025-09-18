@@ -280,7 +280,6 @@ def get_varindexes(folder, filter='J', **columns):
                                data_filtered[mag_col], 
                                data_filtered[err_col])
                 var = VariabilityIndex(lc)
-                var.suppress_warnings_globally(cls)
                 #.LightCurve properties to extract
                 props_lc = ['N', 'SNR', 'max', 'mean', 'mean_err', 'median', 'min', 
                         'ptp', 'range', 'std', 'time_max', 'time_min', 
