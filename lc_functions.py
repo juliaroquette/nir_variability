@@ -628,7 +628,7 @@ def comp_ptp(data, magnitudes, percentage):
     
     amp = median_sup - median_inf
     
-    return 
+    return amp
 
 
 
