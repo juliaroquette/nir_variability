@@ -8,8 +8,6 @@ import os
 import re
 import glob
 import numpy as np
-# to prevent it from printing the Q-index warning
-VariabilityIndex.suppress_warnings_globally()
 
 def stats_lightcurves_paralalel(folder, filter='J', batch_size=1000, **columns):
     """
