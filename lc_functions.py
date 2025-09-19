@@ -158,7 +158,7 @@ def stats_lightcurves_paralalel(folder, filter='J', batch_size=1000, **columns):
     print(f" {filter}: {len(results)} files processed successfully")
     print(f" Output saved to: {output_path}")
 
-def get_varindexes(folder, filter='J', **columns):
+def get_varindexes(folder, filter, **columns):
     """
     Process light curves files, extracting statistical properties and variability indexes.
     
@@ -187,6 +187,9 @@ def get_varindexes(folder, filter='J', **columns):
     - file: Original filename
     - file_number: Numeric identifier extracted from filename
     - filter: Filter used for processing
+    - 'time': Time values
+    - 'mag': Magnitude values  
+    - 'err': Error values
     - N: Number of data points
     - SNR: Signal-to-noise ratio
     - max: Maximum magnitude value
@@ -278,8 +281,9 @@ def get_varindexes(folder, filter='J', **columns):
                                data_filtered[mag_col], 
                                data_filtered[err_col])
                 var = VariabilityIndex(lc)
+                
                 #.LightCurve properties to extract
-                props_lc = ['N', 'SNR', 'max', 'mean', 'mean_err', 'median', 'min', 
+                props_lc = ['time', 'mag', 'err', 'N', 'SNR', 'max', 'mean', 'mean_err', 'median', 'min', 
                         'ptp', 'range', 'std', 'time_max', 'time_min', 
                         'time_span', 'weighted_average']
                 props_var = ['Abbe', 'IQR', 'Lag1AutoCorr', 'RoMS', 'ShapiroWilk',
@@ -301,7 +305,7 @@ def get_varindexes(folder, filter='J', **columns):
             else:
                 #.If no data is available for specified filter
                 file_data.update({prop: np.nan for prop in [
-                    'N', 'SNR', 'max', 'mean', 'mean_err', 'median', 'min',
+                    'time', 'mag', 'err', 'N', 'SNR', 'max', 'mean', 'mean_err', 'median', 'min',
                     'ptp', 'range', 'std', 'time_max', 'time_min',
                     'time_span', 'weighted_average', 'ra_mean', 'dec_mean'
                 ]})
@@ -311,7 +315,7 @@ def get_varindexes(folder, filter='J', **columns):
         except Exception as e:
             #.If error, fill with NaN
             file_data.update({prop: np.nan for prop in [
-                'N', 'SNR', 'max', 'mean', 'mean_err', 'median', 'min',
+                'time', 'mag', 'err', 'N', 'SNR', 'max', 'mean', 'mean_err', 'median', 'min',
                 'ptp', 'range', 'std', 'time_max', 'time_min',
                 'time_span', 'weighted_average', 'ra_mean', 'dec_mean'
             ]})
@@ -328,7 +332,7 @@ def get_varindexes(folder, filter='J', **columns):
     print(f" {filter}: {len(results)} files processed successfully")
     print(f" Output saved to: {output_path}")
 
-def stats_lightcurves(folder, filter='J', **columns):
+def stats_lightcurves(folder, filter, **columns):
     """
     Process light curves files extracting statistical properties.
     
@@ -357,6 +361,9 @@ def stats_lightcurves(folder, filter='J', **columns):
     - file: Original filename
     - file_number: Numeric identifier extracted from filename
     - filter: Filter used for processing
+    - 'time': Time values
+    - 'mag': Magnitude values  
+    - 'err': Error values
     - N: Number of data points
     - SNR: Signal-to-noise ratio
     - max: Maximum magnitude value
@@ -420,7 +427,7 @@ def stats_lightcurves(folder, filter='J', **columns):
                                data_filtered[err_col])
                 
                 #.LightCurve properties to extract
-                props = ['N', 'SNR', 'max', 'mean', 'mean_err', 'median', 'min', 
+                props = ['time', 'mag', 'err', 'N', 'SNR', 'max', 'mean', 'mean_err', 'median', 'min', 
                         'ptp', 'range', 'std', 'time_max', 'time_min', 
                         'time_span', 'weighted_average']
                 
@@ -436,7 +443,7 @@ def stats_lightcurves(folder, filter='J', **columns):
             else:
                 #.If no data is available for specified filter
                 file_data.update({prop: np.nan for prop in [
-                    'N', 'SNR', 'max', 'mean', 'mean_err', 'median', 'min',
+                    'time', 'mag', 'err', 'N', 'SNR', 'max', 'mean', 'mean_err', 'median', 'min',
                     'ptp', 'range', 'std', 'time_max', 'time_min',
                     'time_span', 'weighted_average', 'ra_mean', 'dec_mean'
                 ]})
@@ -446,7 +453,7 @@ def stats_lightcurves(folder, filter='J', **columns):
         except Exception as e:
             #.If error, fill with NaN
             file_data.update({prop: np.nan for prop in [
-                'N', 'SNR', 'max', 'mean', 'mean_err', 'median', 'min',
+                'time', 'mag', 'err', 'N', 'SNR', 'max', 'mean', 'mean_err', 'median', 'min',
                 'ptp', 'range', 'std', 'time_max', 'time_min',
                 'time_span', 'weighted_average', 'ra_mean', 'dec_mean'
             ]})
