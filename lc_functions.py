@@ -282,10 +282,12 @@ def get_varindexes(folder, filter='J', **columns):
                 props_lc = ['N', 'SNR', 'max', 'mean', 'mean_err', 'median', 'min', 
                         'ptp', 'range', 'std', 'time_max', 'time_min', 
                         'time_span', 'weighted_average']
-                props_var = ['Abbe', 'IQR', 'Lag1AutoCorr', 'RoMS', 'ShapiroWilk',
-                        'andersonDarling', 'chisquare', 'kurtosis', 'mad',
-                        'norm_ptp', 'normalisedExcessVariance', 'reducedChiSquare',
-                        'skewness', 'Q_index']
+                # props_var = ['Abbe', 'IQR', 'Lag1AutoCorr', 'RoMS', 'ShapiroWilk',
+                        # 'andersonDarling', 'chisquare', 'kurtosis', 'mad',
+                        # 'norm_ptp', 'normalisedExcessVariance', 'reducedChiSquare',
+                        # 'skewness', 'Q_index']
+                # do it automatically
+                props_var = var._list_properties()
                 
                 #.Extract each property (returns NaN if missing)
                 for prop in props_lc:
