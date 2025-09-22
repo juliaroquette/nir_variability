@@ -1,5 +1,5 @@
 import sys
-sys.path.append('/Users/marie/Documents/Research/sge/Julia/VariabilityIndexes')
+sys.path.append('/Users/juliaroquette/Work/Prog/Jupyter/NEMESIS/QMindex') 
 from variability.lightcurve import LightCurve
 from variability.indexes import VariabilityIndex
 from tqdm import tqdm
@@ -41,8 +41,8 @@ def stats_lightcurves_paralalel(folder, filter='J', batch_size=1000, **columns):
     - file: Original filename
     - file_number: Numeric identifier extracted from filename
     - filter: Filter used for processing
-    - N: Number of data points
-    - SNR: Signal-to-noise ratio
+    - n_epochs: Number of data points
+    - signal_to_noise: Signal-to-noise ratio
     - max: Maximum magnitude value
     - mean: Mean magnitude value
     - mean_err: Mean error value
@@ -108,9 +108,7 @@ def stats_lightcurves_paralalel(folder, filter='J', batch_size=1000, **columns):
                                    data_filtered[err_col])
                     
                     #.LightCurve properties to extract
-                    props = ['N', 'SNR', 'max', 'mean', 'mean_err', 'median', 'min', 
-                            'ptp', 'range', 'std', 'time_max', 'time_min', 
-                            'time_span', 'weighted_average']
+                    props = lc._list_properties()
                     
                     #.Extract each property (returns NaN if missing)
                     for prop in props:
@@ -123,21 +121,13 @@ def stats_lightcurves_paralalel(folder, filter='J', batch_size=1000, **columns):
                     
                 else:
                     #.If no data is available for specified filter
-                    file_data.update({prop: np.nan for prop in [
-                        'N', 'SNR', 'max', 'mean', 'mean_err', 'median', 'min',
-                        'ptp', 'range', 'std', 'time_max', 'time_min',
-                        'time_span', 'weighted_average', 'ra_mean', 'dec_mean'
-                    ]})
-                    file_data['N'] = 0  #.set count to zero
+                    file_data.update({prop: np.nan for prop in props})
+                    file_data['n_epochs'] = 0  #.set count to zero
                     file_data['error'] = 'No data for filter'
                     
             except Exception as e:
                 #.If error, fill with NaN
-                file_data.update({prop: np.nan for prop in [
-                    'N', 'SNR', 'max', 'mean', 'mean_err', 'median', 'min',
-                    'ptp', 'range', 'std', 'time_max', 'time_min',
-                    'time_span', 'weighted_average', 'ra_mean', 'dec_mean'
-                ]})
+                file_data.update({prop: np.nan for prop in props})
                 file_data['error'] = str(e)  #.storing error message
                 print(f"✗ Error in {file}: {e}")
             
@@ -268,20 +258,21 @@ def get_varindexes(folder, filter='J', **columns):
         try:
             #.Loading columns used (including RA and DEC)
             data = pd.read_csv(os.path.join(folder, file), 
-                              usecols=['Filter', ra_col, dec_col, time_col, mag_col, err_col])
+                                usecols=['Filter', ra_col, dec_col, time_col, mag_col, err_col])
             #.Filter data for specified filter band
             data_filtered = data[data['Filter'] == filter]
             
             if not data_filtered.empty:
                 #.Create LightCurve and Variability indexes objects and extract properties
                 lc = LightCurve(data_filtered[time_col], 
-                               data_filtered[mag_col], 
-                               data_filtered[err_col])
+                                data_filtered[mag_col], 
+                                data_filtered[err_col])
                 var = VariabilityIndex(lc)
                 #.LightCurve properties to extract
-                props_lc = ['N', 'SNR', 'max', 'mean', 'mean_err', 'median', 'min', 
-                        'ptp', 'range', 'std', 'time_max', 'time_min', 
-                        'time_span', 'weighted_average']
+                props_lc = lc._list_properties()
+                # ['N', 'SNR', 'max', 'mean', 'mean_err', 'median', 'min', 
+                        # 'ptp', 'range', 'std', 'time_max', 'time_min', 
+                        # 'time_span', 'weighted_average']
                 # props_var = ['Abbe', 'IQR', 'Lag1AutoCorr', 'RoMS', 'ShapiroWilk',
                         # 'andersonDarling', 'chisquare', 'kurtosis', 'mad',
                         # 'norm_ptp', 'normalisedExcessVariance', 'reducedChiSquare',
@@ -298,25 +289,21 @@ def get_varindexes(folder, filter='J', **columns):
                 #.Calculate mean RA and DEC
                 file_data['ra_mean'] = data_filtered[ra_col].mean()
                 file_data['dec_mean'] = data_filtered[dec_col].mean()
+                props_lc.extend(['ra_mean', 'dec_mean'])
                 file_data['error'] = None  #.no error occurred
-                
             else:
                 #.If no data is available for specified filter
-                file_data.update({prop: np.nan for prop in [
-                    'N', 'SNR', 'max', 'mean', 'mean_err', 'median', 'min',
-                    'ptp', 'range', 'std', 'time_max', 'time_min',
-                    'time_span', 'weighted_average', 'ra_mean', 'dec_mean'
-                ]})
-                file_data['N'] = 0  #.set count to zero
+                file_data.update({prop: np.nan for prop in ['n_epochs', 'SNR', 'max', 'mean', 'mean_err', 'median', 'min', 
+                            'ptp', 'std', 'time_max', 'time_min', 
+                            'time_span', 'weighted_average', 'ra_mean', 'dec_mean']})
+                file_data['n_epochs'] = 0  #.set count to zero
                 file_data['error'] = 'No data for filter'
                 
         except Exception as e:
             #.If error, fill with NaN
-            file_data.update({prop: np.nan for prop in [
-                'N', 'SNR', 'max', 'mean', 'mean_err', 'median', 'min',
-                'ptp', 'range', 'std', 'time_max', 'time_min',
-                'time_span', 'weighted_average', 'ra_mean', 'dec_mean'
-            ]})
+            file_data.update({prop: np.nan for prop in ['n_epochs', 'SNR', 'max', 'mean', 'mean_err', 'median', 'min', 
+                        'ptp', 'std', 'time_max', 'time_min', 
+                        'time_span', 'weighted_average', 'ra_mean', 'dec_mean']})
             file_data['error'] = str(e)  #.storing error message
             print(f"✗ Error in {file}: {e}")
         
